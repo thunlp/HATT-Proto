@@ -14,7 +14,7 @@ class ProtoHATT(fewshot_re_kit.framework.FewShotREModel):
         self.drop = nn.Dropout()
         
         # for instance-level attention
-        self.fc = nn.Linear(hidden_size, hidden_size)
+        self.fc = nn.Linear(hidden_size, hidden_size, bias=True)
         # for feature-level attention
         self.conv1 = nn.Conv2d(1, 32, (shots, 1), padding=(shots // 2, 0))
         self.conv2 = nn.Conv2d(32, 64, (shots, 1), padding=(shots // 2, 0))
@@ -39,8 +39,6 @@ class ProtoHATT(fewshot_re_kit.framework.FewShotREModel):
         '''
         support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
         query = self.sentence_encoder(query) # (B * N * Q, D)
-        support = self.drop(support)
-        query = self.drop(query)
         support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)
         query = query.view(-1, N * Q, self.hidden_size) # (B, N * Q, D)
 
@@ -52,7 +50,8 @@ class ProtoHATT(fewshot_re_kit.framework.FewShotREModel):
         fea_att_score = F.relu(self.conv1(fea_att_score)) # (B * N, 32, K, D) 
         fea_att_score = F.relu(self.conv2(fea_att_score)) # (B * N, 64, K, D)
         fea_att_score = self.drop(fea_att_score)
-        fea_att_score = F.relu(self.conv_final(fea_att_score)) # (B * N, 1, 1, D)
+        fea_att_score = self.conv_final(fea_att_score) # (B * N, 1, 1, D)
+        fea_att_score = F.relu(fea_att_score)
         fea_att_score = fea_att_score.view(B, N, self.hidden_size).unsqueeze(1) # (B, 1, N, D)
 
         # instance-level attention 
@@ -60,8 +59,7 @@ class ProtoHATT(fewshot_re_kit.framework.FewShotREModel):
         support_for_att = self.fc(support) 
         query_for_att = self.fc(query.unsqueeze(2).unsqueeze(3).expand(-1, -1, N, K, -1))
         ins_att_score = F.softmax(torch.tanh(support_for_att * query_for_att).sum(-1), dim=-1) # (B, NQ, N, K)
-        # support_proto = (support * ins_att_score.unsqueeze(4).expand(-1, -1, -1, -1, self.hidden_size)).sum(3) # (B, NQ, N, D)
-        support_proto = support.mean(3)
+        support_proto = (support * ins_att_score.unsqueeze(4).expand(-1, -1, -1, -1, self.hidden_size)).sum(3) # (B, NQ, N, D)
 
         # Prototypical Networks 
         logits = -self.__batch_dist__(support_proto, query, fea_att_score)

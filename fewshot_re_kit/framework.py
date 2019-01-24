@@ -98,7 +98,8 @@ class FewShotREFramework:
               test_iter=3000,
               cuda=True,
               pretrain_model=None,
-              optimizer=optim.SGD):
+              optimizer=optim.SGD,
+              noise_rate=0):
         '''
         model: a FewShotREModel instance
         model_name: Name of the model
@@ -143,7 +144,7 @@ class FewShotREFramework:
         iter_sample = 0.0
         for it in range(start_iter, start_iter + train_iter):
             scheduler.step()
-            support, query, label = self.train_data_loader.next_batch(B, N_for_train, K, Q)
+            support, query, label = self.train_data_loader.next_batch(B, N_for_train, K, Q, noise_rate=noise_rate)
             logits, pred = model(support, query, N_for_train, K, Q)
             loss = model.loss(logits, label)
             right = model.accuracy(pred, label)
@@ -163,7 +164,7 @@ class FewShotREFramework:
                 iter_sample = 0.
 
             if (it + 1) % val_step == 0:
-                acc = self.eval(model, B, N_for_eval, K, Q, val_iter)
+                acc = self.eval(model, B, N_for_eval, K, Q, val_iter, noise_rate=noise_rate)
                 model.train()
                 if acc > best_acc:
                     print('Best checkpoint')
@@ -175,14 +176,15 @@ class FewShotREFramework:
                 
         print("\n####################\n")
         print("Finish training " + model_name)
-        test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'))
+        test_acc = self.eval(model, B, N_for_eval, K, Q, test_iter, ckpt=os.path.join(ckpt_dir, model_name + '.pth.tar'), noise_rate=noise_rate)
         print("Test accuracy: {}".format(test_acc))
 
     def eval(self,
             model,
             B, N, K, Q,
             eval_iter,
-            ckpt=None): 
+            ckpt=None,
+            noise_rate=0): 
         '''
         model: a FewShotREModel instance
         B: Batch size
@@ -205,7 +207,7 @@ class FewShotREFramework:
         iter_right = 0.0
         iter_sample = 0.0
         for it in range(eval_iter):
-            support, query, label = eval_dataset.next_batch(B, N, K, Q)
+            support, query, label = eval_dataset.next_batch(B, N, K, Q, noise_rate=noise_rate)
             logits, pred = model(support, query, N, K, Q)
             right = model.accuracy(pred, label)
             iter_right += self.item(right.data)

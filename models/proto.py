@@ -12,7 +12,6 @@ class Proto(fewshot_re_kit.framework.FewShotREModel):
         fewshot_re_kit.framework.FewShotREModel.__init__(self, sentence_encoder)
         self.hidden_size = hidden_size
         self.fc = nn.Linear(hidden_size, hidden_size)
-        self.drop = nn.Dropout()
 
     def __dist__(self, x, y, dim):
         return (torch.pow(x - y, 2)).sum(dim)
@@ -30,8 +29,6 @@ class Proto(fewshot_re_kit.framework.FewShotREModel):
         '''
         support = self.sentence_encoder(support) # (B * N * K, D), where D is the hidden size
         query = self.sentence_encoder(query) # (B * N * Q, D)
-        support = self.drop(support)
-        query = self.drop(query)
         support = support.view(-1, N, K, self.hidden_size) # (B, N, K, D)
         query = query.view(-1, N * Q, self.hidden_size) # (B, N * Q, D)
 

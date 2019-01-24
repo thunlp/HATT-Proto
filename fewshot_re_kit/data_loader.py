@@ -207,8 +207,12 @@ class JSONFileDataLoader(FileDataLoader):
             json.dump(self.word2id, open(os.path.join(processed_data_dir, word_vec_name_prefix + '_word2id.json'), 'w'))
             print("Finish storing")
 
-    def next_one(self, N, K, Q):
+    def next_one(self, N, K, Q, noise_rate=0):
         target_classes = random.sample(self.rel2scope.keys(), N)
+        noise_classes = []
+        for class_name in self.rel2scope.keys():
+            if not (class_name in target_classes):
+                noise_classes.append(class_name)
         support_set = {'word': [], 'pos1': [], 'pos2': [], 'mask': []}
         query_set = {'word': [], 'pos1': [], 'pos2': [], 'mask': []}
         query_label = []
@@ -224,6 +228,22 @@ class JSONFileDataLoader(FileDataLoader):
             support_pos1, query_pos1, _ = np.split(pos1, [K, K + Q])
             support_pos2, query_pos2, _ = np.split(pos2, [K, K + Q])
             support_mask, query_mask, _ = np.split(mask, [K, K + Q])
+
+            for j in range(K):
+                prob = np.random.rand()
+                if prob < noise_rate:
+                    noise_class_name = noise_classes[np.random.randint(0, len(noise_classes))]
+                    scope = self.rel2scope[noise_class_name]
+                    indices = np.random.choice(list(range(scope[0], scope[1])), 1, False)
+                    word = self.data_word[indices]
+                    pos1 = self.data_pos1[indices]
+                    pos2 = self.data_pos2[indices]
+                    mask = self.data_mask[indices]
+                    support_word[j] = word
+                    support_pos1[j] = pos1
+                    support_pos2[j] = pos2
+                    support_mask[j] = mask
+
             support_set['word'].append(support_word)
             support_set['pos1'].append(support_pos1)
             support_set['pos2'].append(support_pos2)
@@ -253,12 +273,12 @@ class JSONFileDataLoader(FileDataLoader):
 
         return support_set, query_set, query_label
 
-    def next_batch(self, B, N, K, Q):
+    def next_batch(self, B, N, K, Q, noise_rate=0):
         support = {'word': [], 'pos1': [], 'pos2': [], 'mask': []}
         query = {'word': [], 'pos1': [], 'pos2': [], 'mask': []}
         label = []
         for one_sample in range(B):
-            current_support, current_query, current_label = self.next_one(N, K, Q)
+            current_support, current_query, current_label = self.next_one(N, K, Q, noise_rate=noise_rate)
             support['word'].append(current_support['word'])
             support['pos1'].append(current_support['pos1'])
             support['pos2'].append(current_support['pos2'])
