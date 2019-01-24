@@ -2,14 +2,12 @@ import models
 from fewshot_re_kit.data_loader import JSONFileDataLoader
 from fewshot_re_kit.framework import FewShotREFramework
 from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder 
+from models.proto_hatt import ProtoHATT
 from models.proto import Proto
-from models.gnn import GNN
-from models.snail import SNAIL
-from models.metanet import MetaNet
 import sys
 from torch import optim
 
-model_name = 'proto'
+model_name = 'proto_hatt'
 N = 5
 K = 5
 if len(sys.argv) > 1:
@@ -33,16 +31,9 @@ sentence_encoder = CNNSentenceEncoder(train_data_loader.word_vec_mat, max_length
 if model_name == 'proto':
     model = Proto(sentence_encoder)
     framework.train(model, model_name, 4, 20, N, K, 5)
-elif model_name == 'gnn':
-    model = GNN(sentence_encoder, N)
-    framework.train(model, model_name, 2, N, N, K, 1, learning_rate=1e-3, weight_decay=0, optimizer=optim.Adam)
-elif model_name == 'snail':
-    print("HINT: SNAIL works only in PyTorch 0.3.1")
-    model = SNAIL(sentence_encoder, N, K)
-    framework.train(model, model_name, 25, N, N, K, 1, learning_rate=1e-2, weight_decay=0, optimizer=optim.SGD)
-elif model_name == 'metanet':
-    model = MetaNet(N, K, train_data_loader.word_vec_mat, max_length)
-    framework.train(model, model_name, 1, N, N, K, 1, learning_rate=5e-3, weight_decay=0, optimizer=optim.Adam, train_iter=300000)
+elif model_name == 'proto_hatt':
+    model = ProtoHATT(sentence_encoder, K)
+    framework.train(model, model_name, 4, 20, N, K, 5, lr_step_size=5000, train_iter=15000)
 else:
     raise NotImplementedError
 

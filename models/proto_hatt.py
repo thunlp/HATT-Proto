@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 class ProtoHATT(fewshot_re_kit.framework.FewShotREModel):
     
-    def __init__(self, sentence_encoder, hidden_size=230):
+    def __init__(self, sentence_encoder, shots, hidden_size=230):
         fewshot_re_kit.framework.FewShotREModel.__init__(self, sentence_encoder)
         self.hidden_size = hidden_size
         self.drop = nn.Dropout()
@@ -24,10 +24,10 @@ class ProtoHATT(fewshot_re_kit.framework.FewShotREModel):
         if score is None:
             return (torch.pow(x - y, 2)).sum(dim)
         else:
-            return (torch.pow(x - y, 2) * score * 700).sum(dim)
+            return (torch.pow(x - y, 2) * score).sum(dim)
 
     def __batch_dist__(self, S, Q, score=None):
-        return self.__dist__(S.unsqueeze(1), Q.unsqueeze(2), 3, score)
+        return self.__dist__(S, Q.unsqueeze(2), 3, score)
 
     def forward(self, support, query, N, K, Q):
         '''
@@ -48,19 +48,20 @@ class ProtoHATT(fewshot_re_kit.framework.FewShotREModel):
         NQ = query.size(1) # Num of instances for each batch in the query set
   
         # feature-level attention
-        fea_att_score = support.view(B * N, 1, K, D) # (B * N, 1, K, D)
+        fea_att_score = support.view(B * N, 1, K, self.hidden_size) # (B * N, 1, K, D)
         fea_att_score = F.relu(self.conv1(fea_att_score)) # (B * N, 32, K, D) 
         fea_att_score = F.relu(self.conv2(fea_att_score)) # (B * N, 64, K, D)
         fea_att_score = self.drop(fea_att_score)
         fea_att_score = F.relu(self.conv_final(fea_att_score)) # (B * N, 1, 1, D)
-        fea_att_score = fea_att_score.view(B, N, D).unsqueeze(1) # (B, 1, N, D)
+        fea_att_score = fea_att_score.view(B, N, self.hidden_size).unsqueeze(1) # (B, 1, N, D)
 
         # instance-level attention 
         support = support.unsqueeze(1).expand(-1, NQ, -1, -1, -1) # (B, NQ, N, K, D)
         support_for_att = self.fc(support) 
         query_for_att = self.fc(query.unsqueeze(2).unsqueeze(3).expand(-1, -1, N, K, -1))
-        ins_att_score = F.softmax((torch.tanh(support_for_att * query_for_att)).sum(-1), dim=-1)
-        support_proto = (support * ins_att_score.unsqueeze(4).expand(-1, -1, -1, -1, D)).sum(3) # (B, NQ, N, D)
+        ins_att_score = F.softmax(torch.tanh(support_for_att * query_for_att).sum(-1), dim=-1) # (B, NQ, N, K)
+        # support_proto = (support * ins_att_score.unsqueeze(4).expand(-1, -1, -1, -1, self.hidden_size)).sum(3) # (B, NQ, N, D)
+        support_proto = support.mean(3)
 
         # Prototypical Networks 
         logits = -self.__batch_dist__(support_proto, query, fea_att_score)
