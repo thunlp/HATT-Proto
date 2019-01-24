@@ -4,7 +4,7 @@ from fewshot_re_kit.framework import FewShotREFramework
 from fewshot_re_kit.sentence_encoder import CNNSentenceEncoder 
 from models.proto import Proto
 from models.proto_hatt import ProtoHATT
-from models.snowball import Snowball
+import sys
 
 model_name = 'proto_hatt'
 N = 5
