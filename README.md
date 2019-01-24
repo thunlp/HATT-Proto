@@ -1,6 +1,6 @@
 # Hybrid Attention-Based Prototypical Networks for Noisy Few-Shot Relation Classification
 
-Code and data for AAAI2019 paper _Hybrid Attention-Based Prototypical Networks for Noisy Few-Shot Relation Classification_.
+Code and data for AAAI2019 paper [Hybrid Attention-Based Prototypical Networks for Noisy Few-Shot Relation Classification](https://gaotianyu1350.github.io/assets/aaai2019_hatt_paper.pdf).
 
 Author: Tianyu Gao*, Xu Han*, Zhiyuan Liu, Maosong Sun. (\* means equal contribution)
 
